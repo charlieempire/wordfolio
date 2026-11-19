@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#f8f9fc"><title>词页 · 我的词汇库</title><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='9' fill='%236444ce'/%3E%3Cpath fill='white' d='m7 11 12 3v17L7 28zm26 0-12 3v17l12-3z'/%3E%3C/svg%3E"><link rel="stylesheet" href="style.css"></head>
+<body>
+<svg class="defs" xmlns="http://www.w3.org/2000/svg"><defs>
+<symbol id="book" viewBox="0 0 24 24"><path d="M3 5q5-1 9 2 4-3 9-2v14q-5-1-9 2-4-3-9-2zM12 7v14"/></symbol>
+<symbol id="checkbook" viewBox="0 0 24 24"><rect x="5" y="3" width="15" height="18" rx="3"/><path d="m9 12 2 2 5-5"/></symbol>
+<symbol id="up" viewBox="0 0 24 24"><path d="M12 15V3m-5 5 5-5 5 5M4 14v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/></symbol>
+<symbol id="grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.6"/><rect x="14" y="14" width="7" height="7" rx="1.6"/></symbol>
+<symbol id="file" viewBox="0 0 24 24"><path d="M5 4a1 1 0 0 1 1-1h8l5 5v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1zM14 3v6h5M9 13h6M9 17h4"/></symbol>
+<symbol id="search" viewBox="0 0 24 24"><circle cx="10" cy="10" r="6.5"/><path d="m15 15 5.5 5.5"/></symbol>
+<symbol id="check" viewBox="0 0 24 24"><path d="m4 12 5 5L20 6"/></symbol>
+<symbol id="disk" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/></symbol>
+<symbol id="close" viewBox="0 0 24 24"><path d="m6 6 12 12m0-12L6 18"/></symbol>
+</defs></svg>
+<header><div class="top inner"><div class="brand"><span class="brandmark"><svg><use href="#book"/></svg></span><b>词页</b><span class="english">Wordfolio</span></div>
+<nav aria-label="词库视图"><button id="study"><svg><use href="#book"/></svg>学习词表</button><button id="easy"><svg><use href="#checkbook"/></svg>简单词表</button></nav>
+<button class="primary import" id="openImport"><svg><use href="#up"/></svg>导入词表</button></div></header>
+<main class="inner">
+<section class="hero"><div><h1>我的词汇库</h1><div class="stats"><div><b id="studyCount"></b><span>待学词条</span></div><div><b id="easyCount"></b><span>简单词</span></div><div><b id="listCount"></b><span>导入词表</span></div></div></div>
+<div class="art" aria-hidden="true"><i class="spark s1"></i><i class="spark s2"></i><i class="yellowdot"></i><div class="card c3"></div><div class="card c2"></div><div class="card c1"><b>Aa</b><i></i><i></i></div></div></section>
+<div class="workspace"><aside><h2>我的词表</h2><div id="sources"></div><p class="device"><svg><use href="#disk"/></svg>保存在此浏览器</p></aside>
+<section class="library" aria-label="词汇清单"><div class="libhead"><div class="titleline"><h2 id="listTitle"></h2><span id="total"></span></div><label class="search"><svg><use href="#search"/></svg><input id="query" type="search" placeholder="搜索单词或释义" aria-label="搜索单词或释义"></label></div>
+<div class="toolrow"><label class="selectall"><input type="checkbox" id="all">全选</label><button id="move" class="move"></button><div class="fontbar"><span>字号</span><button id="smaller" aria-label="减小字号">A−</button><button id="larger" aria-label="增大字号">A+</button></div></div>
+<div id="words"></div><div id="empty" hidden></div></section></div>
+</main>
+<dialog id="importBox"><div class="modalhead"><h2>导入词表</h2><button class="iconbtn" id="dismiss" aria-label="关闭"><svg><use href="#close"/></svg></button></div>
+<p class="hint">选择含英文和中文释义的 Excel 或 CSV 文件。</p>
+<button class="drop" id="pick"><svg><use href="#up"/></svg><b>点击选择或拖入文件</b><small>.xlsx / .csv · 支持多选</small></button><input id="files" type="file" accept=".xlsx,.csv" multiple hidden>
+<p class="hint footnote">每张工作表单独保存，自动跳过已标记的简单词。</p><div id="result" role="status" aria-live="polite"></div></dialog>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+<script src="jszip.min.js"></script><script src="seed.js"></script><script src="import.js"></script><script src="app.js"></script>
+</body></html>
