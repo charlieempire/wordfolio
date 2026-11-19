@@ -39,17 +39,21 @@ function render(){
   shown=[...(list?indexRows([list]):entries)].filter(([k,r])=>matches(k)&&(!query||k.includes(query)||normalize(r[1]).includes(query))).sort((a,b)=>collator.compare(a[0],b[0]));
   $('total').textContent=shown.length+' 词条';$('words').replaceChildren();
   const n=columns();lastColumns=n;$('words').style.setProperty('--cols',n);
-  const perCol=Math.ceil(shown.length/n);
-  for(let start=0;start<shown.length;start+=perCol){
-    const col=element('div','column');let initial='';
-    for(const [k,[en,zh]] of shown.slice(start,start+perCol)){
-      const first=k.match(/[a-z]/i)?.[0].toUpperCase()||'#';
-      if(first!==initial){initial=first;const label=element('div','letter');label.append(element('span','',first));col.append(label)}
-      const label=element('label','entry'),box=element('input');box.type='checkbox';box.value=k;box.checked=selected.has(k);box.setAttribute('aria-label','选择 '+en);
-      box.onchange=()=>{if(box.checked)selected.add(k);else selected.delete(k);updateSelection()};
-      const pair=element('span');pair.append(element('strong','',en),element('small','',zh));label.append(box,pair);col.append(label);
-    }$('words').append(col);
+  const grid=document.createDocumentFragment();
+  let initial='';
+  for(const [k,[en,zh]] of shown){
+    const first=k.match(/[a-z]/i)?.[0].toUpperCase()||'#';
+    if(first!==initial){
+      initial=first;
+      const heading=element('div','letter');
+      heading.append(element('span','',first));
+      grid.append(heading);
+    }
+    const label=element('label','entry'),box=element('input');box.type='checkbox';box.value=k;box.checked=selected.has(k);box.setAttribute('aria-label','选择 '+en);
+    box.onchange=()=>{if(box.checked)selected.add(k);else selected.delete(k);updateSelection()};
+    const pair=element('span');pair.append(element('strong','',en),element('small','',zh));label.append(box,pair);grid.append(label);
   }
+  $('words').append(grid);
   $('empty').hidden=shown.length>0;$('empty').textContent=query?'没有找到匹配的词条':isEasy?'这张词表还没有简单词':'这张词表中没有待学词条';
   document.documentElement.style.setProperty('--word',state.size+'px');$('smaller').disabled=state.size<=15;$('larger').disabled=state.size>=29;
   updateSelection();
