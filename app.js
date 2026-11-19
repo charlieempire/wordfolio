@@ -7,19 +7,40 @@ function initial(){
     {id:listId(baseFile,'固定搭配'),name:'2014 完形 · 固定搭配',rows:seed.phrases}
   ]};
 }
-let state=initial(),storageError=false;
-try{const data=JSON.parse(localStorage.getItem(key)||'null');if(data?.version===1&&Array.isArray(data.lists)&&Array.isArray(data.easy))state=data;else localStorage.setItem(key,JSON.stringify(state))}catch{storageError=true}
-let mode='study',source='*',selected=new Set(),shown=[],noticeTimer,lastColumns=0,importing=false;
+const library=createLibraryStore(key,initial),viewKey='ciye.wordfolio.view.v1';
+const updates=typeof BroadcastChannel==='function'?new BroadcastChannel('ciye.wordfolio.changes'):null;
+let state=initial(),mode='study',source='*',selected=new Set(),shown=[],noticeTimer,importing=false;
+let ready=false,viewTimer,viewWarning=false;
+if('scrollRestoration' in history)history.scrollRestoration='manual';
 const collator=new Intl.Collator('en',{sensitivity:'base',ignorePunctuation:true});
 function toast(message){clearTimeout(noticeTimer);$('toast').textContent=message;$('toast').hidden=false;noticeTimer=setTimeout(()=>{$('toast').hidden=true},3700)}
-function save(next){try{localStorage.setItem(key,JSON.stringify(next));state=next;return true}catch{toast('浏览器存储空间不足或不可用，修改未保存');return false}}
+async function save(change){
+  try{state=await library.update(change);updates?.postMessage('saved');return true}
+  catch{toast('词库未能保存，请检查浏览器存储空间');return false}
+}
+function rememberView(){
+  if(!ready)return;
+  clearTimeout(viewTimer);
+  try{localStorage.setItem(viewKey,JSON.stringify({mode,source,query:$('query').value,selected:[...selected],scrollY:scrollY}))}
+  catch{if(!viewWarning){viewWarning=true;toast('浏览位置未能保存，请检查浏览器存储')}}
+}
+function restoreView(){
+  let view;
+  try{view=JSON.parse(localStorage.getItem(viewKey))}catch{}
+  if(!view)return 0;
+  mode=view.mode==='easy'?'easy':'study';
+  source=state.lists.some(list=>list.id===view.source)?view.source:'*';
+  $('query').value=typeof view.query==='string'?view.query:'';
+  selected=new Set(Array.isArray(view.selected)?view.selected:[]);
+  return Number.isFinite(view.scrollY)?Math.max(0,view.scrollY):0;
+}
 function element(tag,cls,content){const e=document.createElement(tag);if(cls)e.className=cls;if(content!==undefined)e.textContent=content;return e}
 function icon(name){const svg=document.createElementNS('http://www.w3.org/2000/svg','svg'),use=document.createElementNS(svg.namespaceURI,'use');use.setAttribute('href','#'+name);svg.setAttribute('aria-hidden','true');svg.append(use);return svg}
 function indexRows(lists){
   const entries=new Map();for(const l of lists)for(const row of l.rows){const k=normalize(row[0]);if(!entries.has(k))entries.set(k,row)}
   return entries;
 }
-function chooseSource(id){source=id;selected.clear();$('query').value='';render()}
+function chooseSource(id){source=id;selected.clear();$('query').value='';render();rememberView()}
 function render(){
   const simple=new Set(state.easy),isEasy=mode==='easy',matches=k=>simple.has(k)===isEasy;
   const entries=indexRows(state.lists);
@@ -38,39 +59,58 @@ function render(){
   const query=normalize($('query').value);
   shown=[...(list?indexRows([list]):entries)].filter(([k,r])=>matches(k)&&(!query||k.includes(query)||normalize(r[1]).includes(query))).sort((a,b)=>collator.compare(a[0],b[0]));
   $('total').textContent=shown.length+' 词条';$('words').replaceChildren();
-  const n=columns();lastColumns=n;$('words').style.setProperty('--cols',n);
+  const visible=new Set(shown.map(([k])=>k));
+  for(const k of selected)if(!visible.has(k))selected.delete(k);
   const grid=document.createDocumentFragment();
-  let initial='';
+  let initial='',group;
   for(const [k,[en,zh]] of shown){
     const first=k.match(/[a-z]/i)?.[0].toUpperCase()||'#';
     if(first!==initial){
       initial=first;
+      group=element('section','word-group');
+      group.setAttribute('aria-label',first+' 词条');
       const heading=element('div','letter');
       heading.append(element('span','',first));
-      grid.append(heading);
+      group.append(heading);
+      grid.append(group);
     }
     const label=element('label','entry'),box=element('input');box.type='checkbox';box.value=k;box.checked=selected.has(k);box.setAttribute('aria-label','选择 '+en);
-    box.onchange=()=>{if(box.checked)selected.add(k);else selected.delete(k);updateSelection()};
-    const pair=element('span');pair.append(element('strong','',en),element('small','',zh));label.append(box,pair);grid.append(label);
+    box.onchange=()=>{if(box.checked)selected.add(k);else selected.delete(k);updateSelection();rememberView()};
+    const pair=element('span');pair.append(element('strong','',en),element('small','',zh));label.append(box,pair);group.append(label);
   }
   $('words').append(grid);
   $('empty').hidden=shown.length>0;$('empty').textContent=query?'没有找到匹配的词条':isEasy?'这张词表还没有简单词':'这张词表中没有待学词条';
   document.documentElement.style.setProperty('--word',state.size+'px');$('smaller').disabled=state.size<=15;$('larger').disabled=state.size>=29;
   updateSelection();
 }
-function columns(){const width=$('words').parentElement.clientWidth;return width<335?1:width<710?2:3}
 function updateSelection(){
   const count=selected.size;$('all').disabled=!shown.length;$('all').checked=shown.length>0&&count===shown.length;$('all').indeterminate=count>0&&count<shown.length;
   $('move').textContent=(mode==='easy'?'移回学习词表':'移入简单词表')+(count?'（'+count+'）':'');$('move').disabled=count===0;
 }
 for(const tab of ['study','easy'])$(tab).onclick=()=>{mode=tab;chooseSource('*')};
-$('all').onchange=()=>{selected=$('all').checked?new Set(shown.map(([k])=>k)):new Set();$('words').querySelectorAll('input').forEach(i=>i.checked=selected.has(i.value));updateSelection()};
-$('move').onclick=()=>{const simple=new Set(state.easy),count=selected.size;for(const k of selected)if(mode==='study')simple.add(k);else simple.delete(k);
-  if(save({...state,easy:[...simple]})){selected.clear();render();toast('已将 '+count+' 个词条移入'+(mode==='study'?'简单词表':'学习词表'))}};
-$('query').oninput=()=>{selected.clear();render()};
-for(const [button,inc] of [['larger',2],['smaller',-2]])$(button).onclick=()=>{if(save({...state,size:Math.max(15,Math.min(29,state.size+inc))}))render()};
-window.addEventListener('resize',()=>{if(columns()!==lastColumns)render()});
-window.addEventListener('storage',e=>{if(e.key===key&&e.newValue){try{const s=JSON.parse(e.newValue);if(s.version===1){state=s;selected.clear();render()}}catch{}}});
+$('all').onchange=()=>{selected=$('all').checked?new Set(shown.map(([k])=>k)):new Set();$('words').querySelectorAll('input').forEach(i=>i.checked=selected.has(i.value));updateSelection();rememberView()};
+$('move').onclick=async()=>{
+  const words=[...selected],toEasy=mode==='study';
+  $('move').disabled=true;
+  const saved=await save(data=>{
+    const simple=new Set(data.easy);
+    for(const word of words){if(toEasy)simple.add(word);else simple.delete(word)}
+    data.easy=[...simple];
+  });
+  if(saved){for(const word of words)selected.delete(word);render();rememberView();toast('已将 '+words.length+' 个词条移入'+(toEasy?'简单词表':'学习词表'))}
+  else updateSelection();
+};
+$('query').oninput=()=>{selected.clear();render();rememberView()};
+for(const [button,inc] of [['larger',2],['smaller',-2]])$(button).onclick=async()=>{if(await save(data=>{data.size=Math.max(15,Math.min(29,data.size+inc))})){render();rememberView()}};
+async function refreshLibrary(){
+  if(!ready)return;
+  try{state=await library.read();render()}catch{toast('词库暂时无法读取')}
+}
+if(updates)updates.onmessage=refreshLibrary;
+window.addEventListener('storage',e=>{if(e.key===key)refreshLibrary()});
+window.addEventListener('scroll',()=>{if(ready){clearTimeout(viewTimer);viewTimer=setTimeout(rememberView,120)}},{passive:true});
+window.addEventListener('pagehide',rememberView);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')rememberView();else refreshLibrary()});
 const dialog=$('importBox');
 $('openImport').onclick=()=>{$('result').textContent='';dialog.showModal()};
 $('dismiss').onclick=()=>dialog.close();dialog.addEventListener('click',e=>{if(e.target===dialog&&!importing){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close()}});
@@ -79,19 +119,35 @@ async function importFiles(files){
   if(importing||!files.length)return;importing=true;$('pick').disabled=true;$('result').textContent='正在读取…';
   const messages=[];let last=null;
   try{for(const file of files){
-    try{const sheets=await readLists(file),next=structuredClone(state),simple=new Set(next.easy);let added=0,skipped=0,repeated=0,valid=0;
-      for(const {name,sheet,pairs} of sheets){
-        valid+=pairs.length;const id=listId(file.name,sheet);let list=next.lists.find(l=>l.id===id);const keys=new Set((list?.rows||[]).map(r=>normalize(r[0])));
-        for(const pair of pairs){const k=normalize(pair[0]);if(simple.has(k)){skipped++;continue}if(keys.has(k)){repeated++;continue}
-          if(!list){list={id,name,rows:[]};next.lists.push(list)}list.rows.push(pair);keys.add(k);added++;last=id;
+    try{const sheets=await readLists(file);let added=0,skipped=0,repeated=0,lastAdded=null;
+      if(!sheets.some(s=>s.pairs.length))throw Error('未找到词条，请使用“英文”和“中文释义”两列');
+      const saved=await save(data=>{
+        const simple=new Set(data.easy);
+        for(const {name,sheet,pairs} of sheets){
+          const id=listId(file.name,sheet);let list=data.lists.find(l=>l.id===id);const keys=new Set((list?.rows||[]).map(r=>normalize(r[0])));
+          for(const pair of pairs){const k=normalize(pair[0]);if(simple.has(k)){skipped++;continue}if(keys.has(k)){repeated++;continue}
+            if(!list){list={id,name,rows:[]};data.lists.push(list)}list.rows.push(pair);keys.add(k);added++;lastAdded=id;
+          }
         }
-      }
-      if(!valid)throw Error('未找到词条，请使用“英文”和“中文释义”两列');
-      if(added&&!save(next))throw Error('无法保存，请检查浏览器存储');
+      });
+      if(!saved)throw Error('无法保存，请检查浏览器存储');
+      if(lastAdded)last=lastAdded;
       messages.push(file.name+'：新增 '+added+'，跳过简单词 '+skipped+'，表内重复 '+repeated+'。');
     }catch(e){messages.push(file.name+'：'+(e.message||'读取失败'))}
   }}finally{importing=false;$('pick').disabled=false;$('files').value='';$('result').textContent=messages.join('\n');if(last){mode='study';chooseSource(last)}else render()}
 }
 $('files').onchange=e=>importFiles([...e.target.files]);const drop=$('pick');
 drop.ondragover=e=>{e.preventDefault();drop.classList.add('over')};drop.ondragleave=()=>drop.classList.remove('over');drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');importFiles([...e.dataTransfer.files])};
-render();if(storageError)toast('浏览器存储不可用，请允许此网站保存数据');
+async function start(){
+  const header=document.querySelector('header'),main=document.querySelector('main');
+  header.inert=main.inert=true;
+  try{
+    state=await library.open();
+    const top=restoreView();
+    render();
+    window.scrollTo(0,top);
+    ready=true;
+    header.inert=main.inert=false;
+  }catch{toast('无法打开词库，请允许此网站保存数据后刷新页面')}
+}
+start();
