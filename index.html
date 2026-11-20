@@ -27,7 +27,7 @@
 <dialog id="importBox"><div class="modalhead"><h2>导入词表</h2><button class="iconbtn" id="dismiss" aria-label="关闭"><svg><use href="#close"/></svg></button></div>
 <p class="hint">选择含英文和中文释义的 Excel 或 CSV 文件。</p>
 <button class="drop" id="pick"><svg><use href="#up"/></svg><b>点击选择或拖入文件</b><small>.xlsx / .csv · 支持多选</small></button><input id="files" type="file" accept=".xlsx,.csv" multiple hidden>
-<p class="hint footnote">每张工作表单独保存，自动跳过已标记的简单词。</p><div id="result" role="status" aria-live="polite"></div></dialog>
+<p class="hint footnote">只导入新词。已有词汇、简单词和本次重复词会自动跳过。</p><div id="result" role="status" aria-live="polite"></div></dialog>
 <div id="toast" role="status" aria-live="polite" hidden></div>
-<script src="jszip.min.js"></script><script src="seed.js"></script><script src="import.js"></script><script src="library-store.js?v=3"></script><script src="app.js?v=3"></script>
+<script src="jszip.min.js"></script><script src="seed.js"></script><script src="import.js"></script><script src="library-store.js?v=3"></script><script src="app.js?v=4"></script>
 </body></html>

@@ -122,17 +122,21 @@ async function importFiles(files){
     try{const sheets=await readLists(file);let added=0,skipped=0,repeated=0,lastAdded=null;
       if(!sheets.some(s=>s.pairs.length))throw Error('未找到词条，请使用“英文”和“中文释义”两列');
       const saved=await save(data=>{
-        const simple=new Set(data.easy);
+        const simple=new Set(data.easy),known=indexRows(data.lists);
         for(const {name,sheet,pairs} of sheets){
-          const id=listId(file.name,sheet);let list=data.lists.find(l=>l.id===id);const keys=new Set((list?.rows||[]).map(r=>normalize(r[0])));
-          for(const pair of pairs){const k=normalize(pair[0]);if(simple.has(k)){skipped++;continue}if(keys.has(k)){repeated++;continue}
-            if(!list){list={id,name,rows:[]};data.lists.push(list)}list.rows.push(pair);keys.add(k);added++;lastAdded=id;
+          const id=listId(file.name,sheet);let list=data.lists.find(l=>l.id===id);
+          for(const pair of pairs){
+            const k=normalize(pair[0]);
+            if(simple.has(k)){skipped++;continue}
+            if(known.has(k)){repeated++;continue}
+            if(!list){list={id,name,rows:[]};data.lists.push(list)}
+            list.rows.push(pair);known.set(k,pair);added++;lastAdded=id;
           }
         }
       });
       if(!saved)throw Error('无法保存，请检查浏览器存储');
       if(lastAdded)last=lastAdded;
-      messages.push(file.name+'：新增 '+added+'，跳过简单词 '+skipped+'，表内重复 '+repeated+'。');
+      messages.push(file.name+'：新增 '+added+'，跳过简单词 '+skipped+'，跳过重复词 '+repeated+'。');
     }catch(e){messages.push(file.name+'：'+(e.message||'读取失败'))}
   }}finally{importing=false;$('pick').disabled=false;$('files').value='';$('result').textContent=messages.join('\n');if(last){mode='study';chooseSource(last)}else render()}
 }
