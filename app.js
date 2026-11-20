@@ -13,6 +13,7 @@ let state=initial(),mode='study',source='*',selected=new Set(),shown=[],noticeTi
 let ready=false,viewTimer,viewWarning=false;
 if('scrollRestoration' in history)history.scrollRestoration='manual';
 const collator=new Intl.Collator('en',{sensitivity:'base',ignorePunctuation:true});
+const quizMode=createQuiz();
 function toast(message){clearTimeout(noticeTimer);$('toast').textContent=message;$('toast').hidden=false;noticeTimer=setTimeout(()=>{$('toast').hidden=true},3700)}
 async function save(change){
   try{state=await library.update(change);updates?.postMessage('saved');return true}
@@ -28,7 +29,7 @@ function restoreView(){
   let view;
   try{view=JSON.parse(localStorage.getItem(viewKey))}catch{}
   if(!view)return 0;
-  mode=view.mode==='easy'?'easy':'study';
+  mode=['easy','quiz'].includes(view.mode)?view.mode:'study';
   source=state.lists.some(list=>list.id===view.source)?view.source:'*';
   $('query').value=typeof view.query==='string'?view.query:'';
   selected=new Set(Array.isArray(view.selected)?view.selected:[]);
@@ -45,7 +46,12 @@ function render(){
   const simple=new Set(state.easy),isEasy=mode==='easy',matches=k=>simple.has(k)===isEasy;
   const entries=indexRows(state.lists);
   $('studyCount').textContent=entries.size-simple.size;$('easyCount').textContent=simple.size;$('listCount').textContent=state.lists.length;
-  for(const tab of ['study','easy']){$(tab).classList.toggle('active',tab===mode);$(tab).setAttribute('aria-pressed',tab===mode)}
+  for(const tab of ['study','easy','quiz']){$(tab).classList.toggle('active',tab===mode);$(tab).setAttribute('aria-pressed',tab===mode)}
+  const testing=mode==='quiz';
+  $('listWorkspace').hidden=testing;
+  document.querySelector('.hero').hidden=testing;
+  $('quizWorkspace').hidden=!testing;
+  if(testing){quizMode.show(state.lists,simple);return}
   const sidebar=$('sources');sidebar.replaceChildren();
   function sourceButton(id,title,count,symbol,cls){
     const b=element('button','source '+cls+(source===id?' active':''));b.setAttribute('aria-pressed',source===id);
@@ -88,6 +94,7 @@ function updateSelection(){
   $('move').textContent=(mode==='easy'?'移回学习词表':'移入简单词表')+(count?'（'+count+'）':'');$('move').disabled=count===0;
 }
 for(const tab of ['study','easy'])$(tab).onclick=()=>{mode=tab;chooseSource('*')};
+$('quiz').onclick=()=>{mode='quiz';render();rememberView()};
 $('all').onchange=()=>{selected=$('all').checked?new Set(shown.map(([k])=>k)):new Set();$('words').querySelectorAll('input').forEach(i=>i.checked=selected.has(i.value));updateSelection();rememberView()};
 $('move').onclick=async()=>{
   const words=[...selected],toEasy=mode==='study';
