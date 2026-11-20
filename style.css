@@ -23,3 +23,22 @@
 .quiz-actions button:disabled{opacity:.45}
 .quiz-actions button:not(.primary):not(:disabled):hover{background:var(--pale)}
 @media(max-width:730px){#quizWorkspace{margin-top:16px}#quizSources{max-height:132px;overflow-y:auto}.quiz-source{min-height:36px;padding:6px 8px}.quiz-face{min-height:165px}.quiz-card{padding:12px 14px 20px}.top nav button{gap:5px;white-space:nowrap;font-size:14px}.quiz-actions{gap:6px}}
+
+.top-actions,.prefs-open,.prefs-foot>div,.binding-row{display:flex;align-items:center}
+.top-actions{margin-left:auto;gap:12px;flex:none}.top-actions .import{margin:0}
+.prefs-open{gap:6px;padding:10px 12px;color:var(--muted);font-size:15px;font-weight:600;border-radius:8px;white-space:nowrap}
+.prefs-open:hover{color:var(--purple);background:var(--pale)}
+#prefsBox{width:min(510px,calc(100% - 24px));padding:0;max-height:min(82dvh,720px)}
+#prefsBox[open]{display:flex;flex-direction:column}
+.prefs-head,.prefs-foot{padding:18px 22px;flex:none}.prefs-head .hint{margin:8px 0 0;font-size:14px}
+#bindings{padding:0 22px;overflow-y:auto;overscroll-behavior:contain;border-block:1px solid var(--line)}
+#bindings h3,#bindings summary{margin:16px 0 5px;color:#594285;font-size:15px;font-weight:650}
+#bindings summary{cursor:pointer;padding:5px 0}#bindings>section:last-child,#bindings>details:last-child{margin-bottom:16px}
+.binding-row{gap:8px;min-height:42px}.binding-row>span{flex:1;min-width:0;overflow-wrap:anywhere;font-size:14px}
+.bind-key{border:1px solid #d9d4e8;border-radius:7px;background:#faf9fd;min-width:82px;padding:6px 9px;font-size:14px}
+.bind-key[aria-pressed=true]{color:var(--purple);background:var(--pale);border-color:var(--purple)}
+.bind-clear{color:var(--muted);padding:6px;font-size:13px}.bind-clear:disabled{opacity:.4}
+.prefs-foot{padding-block:12px}.prefs-foot>div{justify-content:space-between;gap:10px}
+#prefsMessage{font-size:14px;color:#624394;min-height:1.5em;margin-bottom:6px}#prefsDefaults{color:var(--muted);padding:8px 0}
+@media(min-width:731px) and (max-width:1020px){.top{gap:14px}.prefs-open span{display:none}.english{display:none}}
+@media(max-width:730px){.prefs-open span{display:none}.top-actions{gap:4px}.prefs-open{padding:9px}.prefs-head,.prefs-foot{padding-inline:15px}#bindings{padding-inline:15px}}

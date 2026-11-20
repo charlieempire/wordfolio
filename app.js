@@ -54,7 +54,7 @@ function render(){
   if(testing){quizMode.show(state.lists,simple);return}
   const sidebar=$('sources');sidebar.replaceChildren();
   function sourceButton(id,title,count,symbol,cls){
-    const b=element('button','source '+cls+(source===id?' active':''));b.setAttribute('aria-pressed',source===id);
+    const b=element('button','source '+cls+(source===id?' active':''));b.dataset.sourceId=id;b.setAttribute('aria-pressed',source===id);
     const badge=element('span','sourceicon');badge.append(icon(symbol));b.append(badge,element('span','name',title),element('span','srcnum',count));b.onclick=()=>chooseSource(id);sidebar.append(b);
   }
   sourceButton('*','全部词汇',isEasy?simple.size:entries.size-simple.size,'grid','all');
