@@ -14,13 +14,28 @@ function csvRows(input){
   row.push(field);rows.push(row);return rows;
 }
 function pairsFrom(rows){
-  const en=/^(英文|英语|单词|词汇|短语|固定搭配|英文单词|word|words|english|term|phrase)$/i;
-  const zh=/^(中文.*|汉语.*|释义|翻译|含义|meaning|translation|definition|chinese)$/i;
-  let start=0,e=0,z=1;
-  const first=rows.findIndex((r,i)=>i<20&&r.some(v=>en.test(String(v).trim()))&&r.some(v=>zh.test(String(v).trim())));
-  if(first>=0){const h=rows[first];e=h.findIndex(v=>en.test(String(v).trim()));z=h.findIndex(v=>zh.test(String(v).trim()));start=first+1}
-  else {const sample=rows.find(r=>r.some(v=>String(v??'').trim()));if(sample && /^\d+$/.test(String(sample[0]).trim())){e=1;z=2}}
-  return rows.slice(start).map(r=>[String(r[e]??'').trim(),String(r[z]??'').trim()]).filter(([w,m])=>/[A-Za-z]/.test(w)&&m);
+  const englishHeader=/^(?:英文|英语)(?:部分|列|词条|单词|词汇|短语|固定搭配|表达)?$|^english(?:words?|terms?|phrases?)?$/;
+  const termHeader=/^(单词|词汇|词条|短语|固定搭配|单词[/／]短语|words?|terms?|phrases?)$/;
+  const meaningHeader=/^(中文.*|汉语.*|释义|翻译|含义|意思|解释|meanings?|translations?|definitions?|chinese)$/;
+  const metadataHeader=/^(序号|编号|备注|词性|首字母|id|notes?|pos)$/;
+  let start=0, englishCol=0, meaningCol=1;
+  const sample=rows.find(row=>row.some(cell=>String(cell??'').trim()));
+  if(sample && /^\d+$/.test(String(sample[0]).trim())){englishCol=1;meaningCol=2}
+  for(let i=0;i<Math.min(20,rows.length);i++){
+    const header=rows[i].map(cell=>normalize(cell).replace(/\s/g,''));
+    const zh=header.findIndex(cell=>meaningHeader.test(cell));
+    if(zh<0)continue;
+    let en=header.findIndex(cell=>englishHeader.test(cell));
+    if(en<0)en=header.findIndex(cell=>termHeader.test(cell));
+    if(en<0){
+      if(header.some(cell=>metadataHeader.test(cell)))throw Error('未识别英文列，请将英文词条所在列命名为“英文”');
+      continue;
+    }
+    start=i+1;englishCol=en;meaningCol=zh;break;
+  }
+  return rows.slice(start)
+    .map(row=>[String(row[englishCol]??'').trim(),String(row[meaningCol]??'').trim()])
+    .filter(([english,meaning])=>/[a-z]/.test(normalize(english))&&meaning);
 }
 async function readLists(file){
   const stem=file.name.replace(/\.[^.]+$/,'');

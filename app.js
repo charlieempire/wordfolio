@@ -142,16 +142,17 @@ async function importFiles(files){
     try{const sheets=await readLists(file);let added=0,skipped=0,skippedMastered=0,repeated=0,lastAdded=null;
       if(!sheets.some(s=>s.pairs.length))throw Error('未找到词条，请使用“英文”和“中文释义”两列');
       const saved=await save(data=>{
-        const simple=new Set(data.easy),mastered=new Set(data.mastered),known=indexRows(data.lists);
+        const simple=new Set(data.easy),mastered=new Set(data.mastered),knownEnglish=new Set();
+        for(const list of data.lists)for(const [english] of list.rows)knownEnglish.add(normalize(english));
         for(const {name,sheet,pairs} of sheets){
           const id=listId(file.name,sheet);let list=data.lists.find(l=>l.id===id);
-          for(const pair of pairs){
-            const k=normalize(pair[0]);
+          for(const [english,meaning] of pairs){
+            const k=normalize(english);
             if(simple.has(k)){skipped++;continue}
             if(mastered.has(k)){skippedMastered++;continue}
-            if(known.has(k)){repeated++;continue}
+            if(knownEnglish.has(k)){repeated++;continue}
             if(!list){list={id,name,rows:[]};data.lists.push(list)}
-            list.rows.push(pair);known.set(k,pair);added++;lastAdded=id;
+            list.rows.push([english,meaning]);knownEnglish.add(k);added++;lastAdded=id;
           }
         }
       });
