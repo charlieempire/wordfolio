@@ -7,12 +7,12 @@
   const commands = [
     ['检验模式','quiz',[
       ['quizPrev','上一个单词'],['quizReveal','显示 / 隐藏翻译'],['quizNext','下一个单词'],
-      ['quizSmaller','减小检验字号'],['quizLarger','增大检验字号'],['quizAll','全选 / 取消全选词表']]],
-    ['学习与简单词表','list',[
+      ['quizSmaller','减小检验字号'],['quizLarger','增大检验字号'],['quizAll','全选 / 取消全选待学词表'],['quizMastered','检验已会词表']]],
+    ['词表管理','list',[
       ['query','搜索单词或释义'],['all','全选 / 取消全选词条'],['move','移入 / 移出简单词表'],
-      ['smaller','减小列表字号'],['larger','增大列表字号'],['listAll','查看全部词汇']]],
+      ['moveMastered','移入 / 移出已会词表'],['smaller','减小列表字号'],['larger','增大列表字号'],['listAll','查看全部词汇']]],
     ['页面导航','main',[
-      ['study','打开学习词表'],['easy','打开简单词表'],['quiz','打开检验模式'],
+      ['study','打开学习词表'],['easy','打开简单词表'],['mastered','打开已会词表'],['quiz','打开检验模式'],
       ['openImport','导入词表'],['openPrefs','打开偏好设置']]],
     ['导入窗口','import',[['pick','选择文件'],['dismiss','关闭导入窗口']]]
   ].flatMap(([group,scope,items])=>items.map(([id,label])=>({group,scope,id,label})));

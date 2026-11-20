@@ -2,7 +2,7 @@ const $=id=>document.getElementById(id);
 const key='ciye.wordfolio.v1', baseFile='2014年考研英语一完形填空词汇及固定搭配_精简版.xlsx';
 const listId=(file,sheet)=>JSON.stringify([normalize(file),normalize(sheet)]);
 function initial(){
-  return {version:1,size:19,easy:seed.simple.map(r=>normalize(r[0])),lists:[
+  return {version:1,size:19,easy:seed.simple.map(r=>normalize(r[0])),mastered:[],lists:[
     {id:listId(baseFile,'单词'),name:'2014 完形 · 单词',rows:[...seed.words,...seed.simple]},
     {id:listId(baseFile,'固定搭配'),name:'2014 完形 · 固定搭配',rows:seed.phrases}
   ]};
@@ -29,7 +29,7 @@ function restoreView(){
   let view;
   try{view=JSON.parse(localStorage.getItem(viewKey))}catch{}
   if(!view)return 0;
-  mode=['easy','quiz'].includes(view.mode)?view.mode:'study';
+  mode=['easy','mastered','quiz'].includes(view.mode)?view.mode:'study';
   source=state.lists.some(list=>list.id===view.source)?view.source:'*';
   $('query').value=typeof view.query==='string'?view.query:'';
   selected=new Set(Array.isArray(view.selected)?view.selected:[]);
@@ -42,26 +42,30 @@ function indexRows(lists){
   return entries;
 }
 function chooseSource(id){source=id;selected.clear();$('query').value='';render();rememberView()}
+const categoryTitles={study:'学习词表',easy:'简单词表',mastered:'已会词表'};
 function render(){
-  const simple=new Set(state.easy),isEasy=mode==='easy',matches=k=>simple.has(k)===isEasy;
+  const simple=new Set(state.easy);
+  const mastered=new Set((state.mastered||[]).filter(key=>!simple.has(key)));
+  const matches=k=>mode==='easy'?simple.has(k):mode==='mastered'?mastered.has(k):!simple.has(k)&&!mastered.has(k);
   const entries=indexRows(state.lists);
-  $('studyCount').textContent=entries.size-simple.size;$('easyCount').textContent=simple.size;$('listCount').textContent=state.lists.length;
-  for(const tab of ['study','easy','quiz']){$(tab).classList.toggle('active',tab===mode);$(tab).setAttribute('aria-pressed',tab===mode)}
+  const studyCount=entries.size-simple.size-mastered.size;
+  $('studyCount').textContent=studyCount;$('easyCount').textContent=simple.size;$('masteredCount').textContent=mastered.size;$('listCount').textContent=state.lists.length;
+  for(const tab of ['study','easy','mastered','quiz']){$(tab).classList.toggle('active',tab===mode);$(tab).setAttribute('aria-pressed',tab===mode)}
   const testing=mode==='quiz';
   $('listWorkspace').hidden=testing;
   document.querySelector('.hero').hidden=testing;
   $('quizWorkspace').hidden=!testing;
-  if(testing){quizMode.show(state.lists,simple);return}
+  if(testing){quizMode.show(state.lists,simple,mastered,entries);return}
   const sidebar=$('sources');sidebar.replaceChildren();
   function sourceButton(id,title,count,symbol,cls){
     const b=element('button','source '+cls+(source===id?' active':''));b.dataset.sourceId=id;b.setAttribute('aria-pressed',source===id);
     const badge=element('span','sourceicon');badge.append(icon(symbol));b.append(badge,element('span','name',title),element('span','srcnum',count));b.onclick=()=>chooseSource(id);sidebar.append(b);
   }
-  sourceButton('*','全部词汇',isEasy?simple.size:entries.size-simple.size,'grid','all');
+  sourceButton('*','全部词汇',{study:studyCount,easy:simple.size,mastered:mastered.size}[mode],'grid','all');
   sidebar.append(element('p','sourcesub','已导入词表'));
   state.lists.forEach((l,i)=>sourceButton(l.id,l.name,l.rows.filter(r=>matches(normalize(r[0]))).length,'file',i%2?'alt':''));
   const list=state.lists.find(l=>l.id===source);
-  $('listTitle').textContent=list?list.name:isEasy?'简单词表':'全部词汇';
+  $('listTitle').textContent=list?list.name:mode==='study'?'全部词汇':categoryTitles[mode];
   const query=normalize($('query').value);
   shown=[...(list?indexRows([list]):entries)].filter(([k,r])=>matches(k)&&(!query||k.includes(query)||normalize(r[1]).includes(query))).sort((a,b)=>collator.compare(a[0],b[0]));
   $('total').textContent=shown.length+' 词条';$('words').replaceChildren();
@@ -85,28 +89,37 @@ function render(){
     const pair=element('span');pair.append(element('strong','',en),element('small','',zh));label.append(box,pair);group.append(label);
   }
   $('words').append(grid);
-  $('empty').hidden=shown.length>0;$('empty').textContent=query?'没有找到匹配的词条':isEasy?'这张词表还没有简单词':'这张词表中没有待学词条';
+  $('empty').hidden=shown.length>0;$('empty').textContent=query?'没有找到匹配的词条':{study:'这张词表中没有待学词条',easy:'这张词表还没有简单词',mastered:'这张词表还没有已会词'}[mode];
   document.documentElement.style.setProperty('--word',state.size+'px');$('smaller').disabled=state.size<=15;$('larger').disabled=state.size>=29;
   updateSelection();
 }
 function updateSelection(){
   const count=selected.size;$('all').disabled=!shown.length;$('all').checked=shown.length>0&&count===shown.length;$('all').indeterminate=count>0&&count<shown.length;
-  $('move').textContent=(mode==='easy'?'移回学习词表':'移入简单词表')+(count?'（'+count+'）':'');$('move').disabled=count===0;
+  const suffix=count?'（'+count+'）':'';
+  $('move').textContent=(mode==='easy'?'移回学习词表':'移入简单词表')+suffix;
+  $('moveMastered').textContent=(mode==='mastered'?'移回学习词表':'移入已会词表')+suffix;
+  $('move').disabled=$('moveMastered').disabled=count===0;
 }
-for(const tab of ['study','easy'])$(tab).onclick=()=>{mode=tab;chooseSource('*')};
+for(const tab of ['study','easy','mastered'])$(tab).onclick=()=>{mode=tab;chooseSource('*')};
 $('quiz').onclick=()=>{mode='quiz';render();rememberView()};
 $('all').onchange=()=>{selected=$('all').checked?new Set(shown.map(([k])=>k)):new Set();$('words').querySelectorAll('input').forEach(i=>i.checked=selected.has(i.value));updateSelection();rememberView()};
-$('move').onclick=async()=>{
-  const words=[...selected],toEasy=mode==='study';
-  $('move').disabled=true;
+async function moveSelected(destination){
+  const words=[...selected];
+  $('move').disabled=$('moveMastered').disabled=true;
   const saved=await save(data=>{
-    const simple=new Set(data.easy);
-    for(const word of words){if(toEasy)simple.add(word);else simple.delete(word)}
-    data.easy=[...simple];
+    const simple=new Set(data.easy),mastered=new Set(data.mastered);
+    for(const word of words){
+      simple.delete(word);mastered.delete(word);
+      if(destination==='easy')simple.add(word);
+      if(destination==='mastered')mastered.add(word);
+    }
+    data.easy=[...simple];data.mastered=[...mastered];
   });
-  if(saved){for(const word of words)selected.delete(word);render();rememberView();toast('已将 '+words.length+' 个词条移入'+(toEasy?'简单词表':'学习词表'))}
+  if(saved){for(const word of words)selected.delete(word);render();rememberView();toast('已将 '+words.length+' 个词条移入'+categoryTitles[destination])}
   else updateSelection();
-};
+}
+$('move').onclick=()=>moveSelected(mode==='easy'?'study':'easy');
+$('moveMastered').onclick=()=>moveSelected(mode==='mastered'?'study':'mastered');
 $('query').oninput=()=>{selected.clear();render();rememberView()};
 for(const [button,inc] of [['larger',2],['smaller',-2]])$(button).onclick=async()=>{if(await save(data=>{data.size=Math.max(15,Math.min(29,data.size+inc))})){render();rememberView()}};
 async function refreshLibrary(){
@@ -126,15 +139,16 @@ async function importFiles(files){
   if(importing||!files.length)return;importing=true;$('pick').disabled=true;$('result').textContent='正在读取…';
   const messages=[];let last=null;
   try{for(const file of files){
-    try{const sheets=await readLists(file);let added=0,skipped=0,repeated=0,lastAdded=null;
+    try{const sheets=await readLists(file);let added=0,skipped=0,skippedMastered=0,repeated=0,lastAdded=null;
       if(!sheets.some(s=>s.pairs.length))throw Error('未找到词条，请使用“英文”和“中文释义”两列');
       const saved=await save(data=>{
-        const simple=new Set(data.easy),known=indexRows(data.lists);
+        const simple=new Set(data.easy),mastered=new Set(data.mastered),known=indexRows(data.lists);
         for(const {name,sheet,pairs} of sheets){
           const id=listId(file.name,sheet);let list=data.lists.find(l=>l.id===id);
           for(const pair of pairs){
             const k=normalize(pair[0]);
             if(simple.has(k)){skipped++;continue}
+            if(mastered.has(k)){skippedMastered++;continue}
             if(known.has(k)){repeated++;continue}
             if(!list){list={id,name,rows:[]};data.lists.push(list)}
             list.rows.push(pair);known.set(k,pair);added++;lastAdded=id;
@@ -143,7 +157,7 @@ async function importFiles(files){
       });
       if(!saved)throw Error('无法保存，请检查浏览器存储');
       if(lastAdded)last=lastAdded;
-      messages.push(file.name+'：新增 '+added+'，跳过简单词 '+skipped+'，跳过重复词 '+repeated+'。');
+      messages.push(file.name+'：新增 '+added+'，跳过简单词 '+skipped+(skippedMastered?'，跳过已会词 '+skippedMastered:'')+'，跳过重复词 '+repeated+'。');
     }catch(e){messages.push(file.name+'：'+(e.message||'读取失败'))}
   }}finally{importing=false;$('pick').disabled=false;$('files').value='';$('result').textContent=messages.join('\n');if(last){mode='study';chooseSource(last)}else render()}
 }

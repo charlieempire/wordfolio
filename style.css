@@ -42,3 +42,7 @@
 #prefsMessage{font-size:14px;color:#624394;min-height:1.5em;margin-bottom:6px}#prefsDefaults{color:var(--muted);padding:8px 0}
 @media(min-width:731px) and (max-width:1020px){.top{gap:14px}.prefs-open span{display:none}.english{display:none}}
 @media(max-width:730px){.prefs-open span{display:none}.top-actions{gap:4px}.prefs-open{padding:9px}.prefs-head,.prefs-foot{padding-inline:15px}#bindings{padding-inline:15px}}
+
+@media(min-width:731px) and (max-width:920px){.top nav{gap:2px}.top nav button{padding-inline:9px}}
+@media(max-width:730px){.top nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px}.top nav button{padding-inline:2px}.stats{flex-wrap:wrap;row-gap:6px}.stats>div{padding:0 8px}}
+@media(max-width:490px){.top nav svg{display:none}.stats b{font-size:20px}.stats>div{padding:0 5px}.stats span{font-size:12px}}
