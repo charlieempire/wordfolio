@@ -13,12 +13,12 @@ function csvRows(input){
   if(quoted)throw Error('CSV 引号未闭合');
   row.push(field);rows.push(row);return rows;
 }
-function pairsFrom(rows){
-  const englishHeader=/^(?:英文|英语)(?:部分|列|词条|单词|词汇|短语|固定搭配|表达)?$|^english(?:words?|terms?|phrases?)?$/;
-  const termHeader=/^(单词|词汇|词条|短语|固定搭配|单词[/／]短语|words?|terms?|phrases?)$/;
+function pairsFrom(rows,sheetName=''){
+  const englishHeader=/^(?:英文|英语)(?:部分|列|词条|单词|词汇|短语|(?:固定)?搭配|表达)?$|^english(?:words?|terms?|phrases?|collocations?)?$/;
+  const termHeader=/^(单词|词汇|词条|短语|(?:固定)?搭配|单词[/／]短语|words?|terms?|phrases?|collocations?)$/;
   const meaningHeader=/^(中文.*|汉语.*|释义|翻译|含义|意思|解释|meanings?|translations?|definitions?|chinese)$/;
   const metadataHeader=/^(序号|编号|备注|词性|首字母|id|notes?|pos)$/;
-  let start=0, englishCol=0, meaningCol=1;
+  let start=0, englishCol=0, meaningCol=1, unmatchedHeader=null;
   const sample=rows.find(row=>row.some(cell=>String(cell??'').trim()));
   if(sample && /^\d+$/.test(String(sample[0]).trim())){englishCol=1;meaningCol=2}
   for(let i=0;i<Math.min(20,rows.length);i++){
@@ -28,10 +28,14 @@ function pairsFrom(rows){
     let en=header.findIndex(cell=>englishHeader.test(cell));
     if(en<0)en=header.findIndex(cell=>termHeader.test(cell));
     if(en<0){
-      if(header.some(cell=>metadataHeader.test(cell)))throw Error('未识别英文列，请将英文词条所在列命名为“英文”');
+      if(!unmatchedHeader && header.some(cell=>metadataHeader.test(cell)))unmatchedHeader=rows[i];
       continue;
     }
     start=i+1;englishCol=en;meaningCol=zh;break;
+  }
+  if(!start && unmatchedHeader){
+    const where=sheetName?'工作表「'+sheetName+'」':'';
+    throw Error(where+'未识别英文列。当前表头：'+unmatchedHeader.filter(Boolean).join('、')+'。英文词条列可命名为“英文”或“英文搭配”。');
   }
   return rows.slice(start)
     .map(row=>[String(row[englishCol]??'').trim(),String(row[meaningCol]??'').trim()])
@@ -60,7 +64,7 @@ async function readLists(file){
         cols[idx]=type==='s'?sst[Number(v)]:(type==='inlineStr'?txt(cell):v);
       }return cols;
     });
-    const title=sheet.getAttribute('name');result.push({sheet:title,name:stem+' · '+title,pairs:pairsFrom(rows)});
+    const title=sheet.getAttribute('name');result.push({sheet:title,name:stem+' · '+title,pairs:pairsFrom(rows,title)});
   }
   return result;
 }
