@@ -13,7 +13,7 @@ let state=initial(),mode='study',source='*',selected=new Set(),shown=[],noticeTi
 let ready=false,viewTimer,viewWarning=false;
 if('scrollRestoration' in history)history.scrollRestoration='manual';
 const collator=new Intl.Collator('en',{sensitivity:'base',ignorePunctuation:true});
-const quizMode=createQuiz();
+const quizMode=createQuiz(markQuizWordMastered);
 function toast(message){clearTimeout(noticeTimer);$('toast').textContent=message;$('toast').hidden=false;noticeTimer=setTimeout(()=>{$('toast').hidden=true},3700)}
 async function save(change){
   try{state=await library.update(change);updates?.postMessage('saved');return true}
@@ -103,10 +103,8 @@ function updateSelection(){
 for(const tab of ['study','easy','mastered'])$(tab).onclick=()=>{mode=tab;chooseSource('*')};
 $('quiz').onclick=()=>{mode='quiz';render();rememberView()};
 $('all').onchange=()=>{selected=$('all').checked?new Set(shown.map(([k])=>k)):new Set();$('words').querySelectorAll('input').forEach(i=>i.checked=selected.has(i.value));updateSelection();rememberView()};
-async function moveSelected(destination){
-  const words=[...selected];
-  $('move').disabled=$('moveMastered').disabled=true;
-  const saved=await save(data=>{
+function moveWords(words,destination){
+  return save(data=>{
     const simple=new Set(data.easy),mastered=new Set(data.mastered);
     for(const word of words){
       simple.delete(word);mastered.delete(word);
@@ -115,6 +113,17 @@ async function moveSelected(destination){
     }
     data.easy=[...simple];data.mastered=[...mastered];
   });
+}
+async function markQuizWordMastered(word){
+  if(!await moveWords([word],'mastered'))return false;
+  render();
+  toast('已移入已会词表');
+  return true;
+}
+async function moveSelected(destination){
+  const words=[...selected];
+  $('move').disabled=$('moveMastered').disabled=true;
+  const saved=await moveWords(words,destination);
   if(saved){for(const word of words)selected.delete(word);render();rememberView();toast('已将 '+words.length+' 个词条移入'+categoryTitles[destination])}
   else updateSelection();
 }

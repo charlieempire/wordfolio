@@ -1,4 +1,4 @@
-function createQuiz() {
+function createQuiz(markMastered) {
   const key = 'ciye.wordfolio.quiz.v1';
   let stored;
   try { stored = JSON.parse(localStorage.getItem(key)); } catch {}
@@ -8,6 +8,7 @@ function createQuiz() {
   let cursor = Number.isInteger(stored?.cursor) ? stored.cursor : 0;
   let revealed = stored?.revealed === true;
   let includeMastered = stored?.includeMastered === true;
+  let savingMastered = false;
   let pool = new Map(), lists = [], simple = new Set(), mastered = new Map();
 
   function persist() {
@@ -52,17 +53,29 @@ function createQuiz() {
     $('quizReveal').disabled = !pair;
     $('quizPrev').disabled = !pair || cursor === 0;
     $('quizNext').disabled = pool.size < 2;
+    const alreadyMastered = mastered.has(order[cursor]);
+    $('quizMarkMastered').textContent = alreadyMastered ? '已在已会词表' : '移入已会词表';
+    $('quizMarkMastered').disabled = !pair || alreadyMastered || savingMastered;
     $('quizSmaller').disabled = size <= 20;
     $('quizLarger').disabled = size >= 80;
   }
   function updateScope(forceShuffle = false) {
+    const previousPool = pool;
     const selected = scope === null ? lists : lists.filter(list => scope.has(list.id));
     pool = indexRows(selected);
     for (const k of simple) pool.delete(k);
     for (const [k,pair] of mastered) {
       if (includeMastered) pool.set(k,pair); else pool.delete(k);
     }
-    if (forceShuffle || !deckMatchesPool()) {
+    if (!forceShuffle && pool.size && pool.size < previousPool.size && [...pool.keys()].every(k => previousPool.has(k))) {
+      // Keep the surviving cards in order, including any previous round.
+      const current = order[cursor];
+      cursor = order.slice(0, cursor).filter(k => pool.has(k)).length;
+      order = order.filter(k => pool.has(k));
+      if (cursor === order.length) startNextRound();
+      if (current !== order[cursor]) revealed = false;
+      persist();
+    } else if (forceShuffle || !deckMatchesPool()) {
       order = shuffleRound(); cursor = 0; revealed = false; persist();
     }
     $('quizAll').checked = !!lists.length && selected.length === lists.length;
@@ -95,13 +108,31 @@ function createQuiz() {
   };
   $('quizReveal').onclick = () => { revealed = !revealed; drawCard(); persist(); };
   $('quizPrev').onclick = () => { cursor--; revealed = false; drawCard(); persist(); };
-  $('quizNext').onclick = () => {
+  function startNextRound() {
+    // Keep the preceding round so Back works across a shuffle.
+    order = order.slice(-pool.size).concat(shuffleRound(order[order.length - 1]));
+    cursor = pool.size;
+  }
+  function nextCard() {
     if (cursor === order.length - 1) {
-      // Keep the preceding round so Back works across a shuffle.
-      order = order.slice(-pool.size).concat(shuffleRound(order[cursor]));
-      cursor = pool.size;
+      startNextRound();
     } else cursor++;
     revealed = false; drawCard(); persist();
+  }
+  $('quizNext').onclick = nextCard;
+  $('quizMarkMastered').onclick = async () => {
+    const word = order[cursor];
+    if (savingMastered || !pool.has(word) || mastered.has(word)) return;
+    savingMastered = true;
+    drawCard();
+    try {
+      const saved = await markMastered(word);
+      // A mixed quiz still includes the marked card in its deck.
+      if (saved && !$('quizWorkspace').hidden && order[cursor] === word && mastered.has(word) && pool.size > 1) nextCard();
+    } finally {
+      savingMastered = false;
+      drawCard();
+    }
   };
   for (const [id, step] of [['quizSmaller', -4], ['quizLarger', 4]]) {
     $(id).onclick = () => { size = Math.max(20, Math.min(80, size + step)); drawCard(); persist(); };
