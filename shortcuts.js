@@ -8,6 +8,7 @@
     ['检验模式','quiz',[
       ['quizPrev','上一个单词'],['quizReveal','显示 / 隐藏翻译'],['quizNext','下一个单词'],
       ['quizMarkMastered','将当前词条移入已会词表'],
+      ['quizAskEnglish','英文出题'],['quizAskChinese','中文出题'],
       ['quizSmaller','减小检验字号'],['quizLarger','增大检验字号'],['quizAll','全选 / 取消全选待学词表'],['quizMastered','检验已会词表']]],
     ['词表管理','list',[
       ['query','搜索单词或释义'],['all','全选 / 取消全选词条'],['move','移入 / 移出简单词表'],

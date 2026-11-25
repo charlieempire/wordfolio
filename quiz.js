@@ -2,7 +2,7 @@ function createQuiz(markMastered) {
   const key = 'ciye.wordfolio.quiz.v1';
   let stored;
   try { stored = JSON.parse(localStorage.getItem(key)); } catch {}
-  let scope, size, order, cursor, revealed, includeMastered;
+  let scope, size, order, cursor, revealed, includeMastered, promptLanguage;
   let savingMastered = false;
   let pool = new Map(), lists = [], simple = new Set(), mastered = new Map();
   function restore(saved) {
@@ -11,12 +11,13 @@ function createQuiz(markMastered) {
     order = Array.isArray(saved?.order) ? saved.order : [];
     cursor = Number.isInteger(saved?.cursor) ? saved.cursor : 0;
     revealed = saved?.revealed === true;
+    promptLanguage = saved?.promptLanguage === 'zh' ? 'zh' : 'en';
     includeMastered = saved?.includeMastered === true;
     pool = new Map();
   }
   restore(stored);
   function snapshot() {
-    return {scope: scope === null ? null : [...scope], includeMastered, size, order, cursor, revealed};
+    return {scope: scope === null ? null : [...scope], includeMastered, size, order, cursor, revealed, promptLanguage};
   }
 
   function persist() {
@@ -46,17 +47,30 @@ function createQuiz(markMastered) {
     }
     return true;
   }
+  function chineseClue(english, meaning) {
+    // A usage note may repeat the answer, e.g. “根据（according to）”.
+    const term = english.trim().replace(/[.*+?^$(){}|[\]\\]/g, '\\$&').replace(/['‘’]/g, "['‘’]").replace(/\s+/g, '\\s+');
+    return meaning.replace(new RegExp('(^|[^a-z0-9])' + term + '(?![a-z0-9])', 'gi'), '$1____');
+  }
   function drawCard() {
     const pair = pool.get(order[cursor]);
+    const chineseFirst = promptLanguage === 'zh';
+    $('quizAskEnglish').setAttribute('aria-pressed', String(!chineseFirst));
+    $('quizAskChinese').setAttribute('aria-pressed', String(chineseFirst));
     $('quizCount').textContent = pool.size + ' 词条';
     $('quizProgress').textContent = pair ? (cursor % pool.size + 1) + ' / ' + pool.size : '';
-    $('quizEnglish').textContent = pair?.[0] || '';
-    $('quizEnglish').style.fontSize = size + 'px';
-    $('quizMeaning').textContent = pair && revealed ? pair[1] : '';
-    $('quizMeaning').hidden = !pair || !revealed;
+    const prompt = $('quizEnglish'), answer = $('quizMeaning');
+    prompt.lang = chineseFirst ? 'zh-CN' : 'en';
+    answer.lang = chineseFirst ? 'en' : 'zh-CN';
+    let clue = pair?.[chineseFirst ? 1 : 0] || '';
+    if (pair && chineseFirst && !revealed) clue = chineseClue(pair[0],pair[1]);
+    prompt.textContent = clue;
+    prompt.style.fontSize = size + 'px';
+    answer.textContent = pair && revealed ? pair[chineseFirst ? 0 : 1] : '';
+    answer.hidden = !pair || !revealed;
     $('quizEmpty').hidden = !!pair;
     $('quizEmpty').textContent = scope?.size === 0 && !includeMastered ? '请选择要检验的词表' : '所选词表暂无可检验的词条';
-    $('quizReveal').textContent = revealed && pair ? '隐藏翻译' : '显示翻译';
+    $('quizReveal').textContent = (revealed && pair ? '隐藏' : '显示') + (chineseFirst ? '英文' : '翻译');
     $('quizReveal').setAttribute('aria-expanded', String(!!pair && revealed));
     $('quizReveal').disabled = !pair;
     $('quizPrev').disabled = !pair || cursor === 0;
@@ -146,6 +160,15 @@ function createQuiz(markMastered) {
     if (lists.every(list => scope.has(list.id))) scope = null;
     updateScope(true);
   };
+  function setPromptLanguage(language) {
+    if (language === promptLanguage) return;
+    promptLanguage = language;
+    revealed = false;
+    drawCard();
+    persist();
+  }
+  $('quizAskEnglish').onclick = () => setPromptLanguage('en');
+  $('quizAskChinese').onclick = () => setPromptLanguage('zh');
   $('quizReveal').onclick = () => { revealed = !revealed; drawCard(); persist(); };
   $('quizPrev').onclick = () => { cursor--; revealed = false; drawCard(); persist(); };
   function startNextRound() {

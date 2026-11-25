@@ -12,6 +12,10 @@
 .quiz-all{background:var(--pale);color:#5c3bb7;font-weight:650;margin-bottom:8px}
 .quiz-library .libhead{border-bottom:1px solid var(--line)}
 .quiz-card{padding:24px clamp(14px,3vw,40px) 28px}
+.quiz-direction{display:flex;width:fit-content;margin:0 auto;padding:3px;border:1px solid var(--line);border-radius:9px;gap:2px}
+.quiz-direction button{padding:6px 13px;font-size:14px;color:var(--muted);border-radius:6px}
+.quiz-direction button[aria-pressed=true]{color:#5c3bb7;background:var(--pale);font-weight:650}
+#quizEnglish:lang(zh-CN){line-height:1.4;letter-spacing:normal}
 .quiz-face{min-height:260px;padding:26px 12px;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center}
 #quizProgress{color:var(--muted);font-size:14px;font-variant-numeric:tabular-nums;margin-bottom:16px}
 #quizEnglish{max-width:100%;overflow-wrap:anywhere;line-height:1.16;letter-spacing:-.035em}
