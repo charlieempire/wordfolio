@@ -1,6 +1,9 @@
 const $=id=>document.getElementById(id);
 const key='ciye.wordfolio.v1', baseFile='2014年考研英语一完形填空词汇及固定搭配_精简版.xlsx';
 const listId=(file,sheet)=>JSON.stringify([normalize(file),normalize(sheet)]);
+function englishInList(list){
+  return new Set((list?.rows || []).map(([english])=>normalize(english)));
+}
 function initial(){
   return {version:1,size:19,easy:seed.simple.map(r=>normalize(r[0])),mastered:[],lists:[
     {id:listId(baseFile,'单词'),name:'2014 完形 · 单词',rows:[...seed.words,...seed.simple]},
@@ -162,10 +165,10 @@ async function importFiles(files){
     try{const sheets=await readLists(file);let added=0,skipped=0,skippedMastered=0,repeated=0,lastAdded=null;
       if(!sheets.some(s=>s.pairs.length))throw Error('未找到词条，请使用“英文”和“中文释义”两列');
       const saved=await save(data=>{
-        const simple=new Set(data.easy),mastered=new Set(data.mastered),knownEnglish=new Set();
-        for(const list of data.lists)for(const [english] of list.rows)knownEnglish.add(normalize(english));
+        const simple=new Set(data.easy),mastered=new Set(data.mastered);
         for(const {name,sheet,pairs} of sheets){
           const id=listId(file.name,sheet);let list=data.lists.find(l=>l.id===id);
+          const knownEnglish=englishInList(list);
           for(const [english,meaning] of pairs){
             const k=normalize(english);
             if(simple.has(k)){skipped++;continue}

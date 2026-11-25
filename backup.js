@@ -88,14 +88,16 @@ async function readBackup(file) {
 }
 
 function supplementLibrary(local, incoming) {
-  const known = new Set(indexRows(local.lists).keys());
+  local.mastered ??= [];
+  const classified = new Set([...local.easy,...local.mastered]);
   const lists = new Map(local.lists.map(list => [list.id,list]));
   let added = 0, marked = 0;
   for (const list of incoming.lists) {
     let target = lists.get(list.id);
+    const known = englishInList(target);
     for (const row of list.rows) {
       const word = normalize(row[0]);
-      if (known.has(word)) continue;
+      if (classified.has(word) || known.has(word)) continue;
       if (!target) {
         target = {id:list.id,name:list.name,rows:[]};
         lists.set(list.id,target);
@@ -106,8 +108,6 @@ function supplementLibrary(local, incoming) {
       added++;
     }
   }
-  local.mastered ??= [];
-  const classified = new Set([...local.easy,...local.mastered]);
   for (const category of ['easy','mastered']) {
     for (const word of incoming[category]) if (!classified.has(word)) {
       local[category].push(word);
