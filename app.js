@@ -19,10 +19,13 @@ async function save(change){
   try{state=await library.update(change);updates?.postMessage('saved');return true}
   catch{toast('词库未能保存，请检查浏览器存储空间');return false}
 }
+function currentView(){
+  return {mode,source,query:$('query').value,selected:[...selected],scrollY:scrollY};
+}
 function rememberView(){
   if(!ready)return;
   clearTimeout(viewTimer);
-  try{localStorage.setItem(viewKey,JSON.stringify({mode,source,query:$('query').value,selected:[...selected],scrollY:scrollY}))}
+  try{localStorage.setItem(viewKey,JSON.stringify(currentView()))}
   catch{if(!viewWarning){viewWarning=true;toast('浏览位置未能保存，请检查浏览器存储')}}
 }
 function restoreView(){
@@ -131,12 +134,20 @@ $('move').onclick=()=>moveSelected(mode==='easy'?'study':'easy');
 $('moveMastered').onclick=()=>moveSelected(mode==='mastered'?'study':'mastered');
 $('query').oninput=()=>{selected.clear();render();rememberView()};
 for(const [button,inc] of [['larger',2],['smaller',-2]])$(button).onclick=async()=>{if(await save(data=>{data.size=Math.max(15,Math.min(29,data.size+inc))})){render();rememberView()}};
-async function refreshLibrary(){
+async function refreshLibrary(notice){
   if(!ready)return;
-  try{state=await library.read();render()}catch{toast('词库暂时无法读取')}
+  try{
+    state=await library.read();
+    if(notice==='backup-replaced'){restoreBackupView();return}
+    if(notice==='backup-merged')quizMode.prepareMerge(state);
+    render();
+  }catch{toast('词库暂时无法读取')}
 }
-if(updates)updates.onmessage=refreshLibrary;
-window.addEventListener('storage',e=>{if(e.key===key)refreshLibrary()});
+if(updates)updates.onmessage=e=>refreshLibrary(e.data);
+window.addEventListener('storage',e=>{
+  if(!updates && e.key==='ciye.wordfolio.backup-notice' && e.newValue)refreshLibrary(e.newValue.split(':')[0]);
+  else if(e.key===key)refreshLibrary();
+});
 window.addEventListener('scroll',()=>{if(ready){clearTimeout(viewTimer);viewTimer=setTimeout(rememberView,120)}},{passive:true});
 window.addEventListener('pagehide',rememberView);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')rememberView();else refreshLibrary()});
@@ -145,7 +156,7 @@ $('openImport').onclick=()=>{$('result').textContent='';dialog.showModal()};
 $('dismiss').onclick=()=>dialog.close();dialog.addEventListener('click',e=>{if(e.target===dialog&&!importing){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close()}});
 $('pick').onclick=()=>$('files').click();
 async function importFiles(files){
-  if(importing||!files.length)return;importing=true;$('pick').disabled=true;$('result').textContent='正在读取…';
+  if(importing||!files.length)return;importing=true;$('backupTools').disabled=$('pick').disabled=true;$('result').textContent='正在读取…';
   const messages=[];let last=null;
   try{for(const file of files){
     try{const sheets=await readLists(file);let added=0,skipped=0,skippedMastered=0,repeated=0,lastAdded=null;
@@ -169,7 +180,7 @@ async function importFiles(files){
       if(lastAdded)last=lastAdded;
       messages.push(file.name+'：新增 '+added+'，跳过简单词 '+skipped+(skippedMastered?'，跳过已会词 '+skippedMastered:'')+'，跳过重复词 '+repeated+'。');
     }catch(e){messages.push(file.name+'：'+(e.message||'读取失败'))}
-  }}finally{importing=false;$('pick').disabled=false;$('files').value='';$('result').textContent=messages.join('\n');if(last){mode='study';chooseSource(last)}else render()}
+  }}finally{importing=false;$('backupTools').disabled=$('pick').disabled=false;$('files').value='';$('result').textContent=messages.join('\n');if(last){mode='study';chooseSource(last)}else render()}
 }
 $('files').onchange=e=>importFiles([...e.target.files]);const drop=$('pick');
 drop.ondragover=e=>{e.preventDefault();drop.classList.add('over')};drop.ondragleave=()=>drop.classList.remove('over');drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');importFiles([...e.dataTransfer.files])};

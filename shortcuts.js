@@ -15,7 +15,7 @@
     ['页面导航','main',[
       ['study','打开学习词表'],['easy','打开简单词表'],['mastered','打开已会词表'],['quiz','打开检验模式'],
       ['openImport','导入词表'],['openPrefs','打开偏好设置']]],
-    ['导入窗口','import',[['pick','选择文件'],['dismiss','关闭导入窗口']]]
+    ['导入窗口','import',[['pick','选择文件'],['dismiss','关闭导入窗口'],['exportBackup','导出个人备份'],['pickBackup','导入个人备份']]]
   ].flatMap(([group,scope,items])=>items.map(([id,label])=>({group,scope,id,label})));
   function actions() {
     return commands.concat(state.lists.flatMap(list => [
@@ -89,6 +89,7 @@
     bindings={...draft}; syncHints(); dialog.close(); toast('快捷键已保存');
   };
   window.addEventListener('storage',e=>{if(e.key===storageKey){bindings=read();syncHints();}});
+  window.addEventListener('wordfolio-restore',()=>{bindings=read();syncHints();});
   function chordOf(e) {
     const key=e.key;
     if (modifiers.includes(key)) return '';
@@ -119,7 +120,7 @@
     if(e.isComposing || e.keyCode===229 || e.defaultPrevented)return;
     if(e.key==='Tab')tabFocus=true;
     if(dialog.open){if(editing)record(e,chordOf(e));return;}
-    if(!ready || e.key==='Tab' || e.key==='Escape')return;
+    if(!ready || $('backupBox').open || e.key==='Tab' || e.key==='Escape')return;
     const el=e.target;
     if(el.isContentEditable || el.closest('textarea,select,[role="textbox"],input:not([type="checkbox"]):not([type="button"])'))return;
     const plainActivate=!e.ctrlKey&&!e.altKey&&!e.metaKey&&!e.shiftKey&&(e.key==='Enter'||e.key===' ');

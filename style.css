@@ -23,6 +23,14 @@
 .quiz-actions button:disabled{opacity:.45}
 .quiz-actions button:not(.primary):not(:disabled):hover{background:var(--pale)}
 #quizMarkMastered{margin:14px auto 0;min-height:40px;padding-inline:16px}
+#backupTools,.backup-options{margin:18px 0 0;padding:0;border:0;min-width:0}
+#backupTools legend,.backup-options legend{padding:0;font-weight:650}
+#backupTools .hint{font-size:14px;margin:6px 0 12px}
+.backup-actions{display:flex;gap:10px}
+.backup-actions button{background:var(--pale);color:#5f43ab;border:1px solid #dfd5f5;border-radius:8px;padding:8px 14px}
+.backup-options label{display:flex;align-items:baseline;gap:10px;padding:12px 0;cursor:pointer}
+.backup-options small{display:block;margin-top:4px;font-size:14px;line-height:1.5;color:var(--muted)}
+#backupSummary{overflow-wrap:anywhere}#backupStatus{font-size:14px;color:#753f58}#applyBackup{width:100%}
 @media(max-width:730px){#quizWorkspace{margin-top:16px}#quizSources{max-height:132px;overflow-y:auto}.quiz-source{min-height:36px;padding:6px 8px}.quiz-face{min-height:165px}.quiz-card{padding:12px 14px 20px}.top nav button{gap:5px;white-space:nowrap;font-size:14px}.quiz-actions{gap:6px}}
 
 .top-actions,.prefs-open,.prefs-foot>div,.binding-row{display:flex;align-items:center}

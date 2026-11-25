@@ -2,22 +2,30 @@ function createQuiz(markMastered) {
   const key = 'ciye.wordfolio.quiz.v1';
   let stored;
   try { stored = JSON.parse(localStorage.getItem(key)); } catch {}
-  let scope = Array.isArray(stored?.scope) ? new Set(stored.scope) : null;
-  let size = Number.isInteger(stored?.size) ? Math.max(20, Math.min(80, stored.size)) : 44;
-  let order = Array.isArray(stored?.order) ? stored.order : [];
-  let cursor = Number.isInteger(stored?.cursor) ? stored.cursor : 0;
-  let revealed = stored?.revealed === true;
-  let includeMastered = stored?.includeMastered === true;
+  let scope, size, order, cursor, revealed, includeMastered;
   let savingMastered = false;
   let pool = new Map(), lists = [], simple = new Set(), mastered = new Map();
+  function restore(saved) {
+    scope = Array.isArray(saved?.scope) ? new Set(saved.scope) : null;
+    size = Number.isInteger(saved?.size) ? Math.max(20, Math.min(80, saved.size)) : 44;
+    order = Array.isArray(saved?.order) ? saved.order : [];
+    cursor = Number.isInteger(saved?.cursor) ? saved.cursor : 0;
+    revealed = saved?.revealed === true;
+    includeMastered = saved?.includeMastered === true;
+    pool = new Map();
+  }
+  restore(stored);
+  function snapshot() {
+    return {scope: scope === null ? null : [...scope], includeMastered, size, order, cursor, revealed};
+  }
 
   function persist() {
     try {
-      localStorage.setItem(key, JSON.stringify({scope: scope === null ? null : [...scope], includeMastered, size, order, cursor, revealed}));
+      localStorage.setItem(key, JSON.stringify(snapshot()));
     } catch { toast('检验设置未能保存，请检查浏览器存储'); }
   }
-  function shuffleRound(last) {
-    const round = [...pool.keys()];
+  function shuffleRound(last, keys = pool.keys()) {
+    const round = [...keys];
     for (let i = round.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [round[i], round[j]] = [round[j], round[i]];
@@ -59,14 +67,19 @@ function createQuiz(markMastered) {
     $('quizSmaller').disabled = size <= 20;
     $('quizLarger').disabled = size >= 80;
   }
+  const selectedLists = () => scope === null ? lists : lists.filter(list => scope.has(list.id));
+  function buildPool(selected) {
+    const result = indexRows(selected);
+    for (const k of simple) result.delete(k);
+    for (const [k,pair] of mastered) {
+      if (includeMastered) result.set(k,pair); else result.delete(k);
+    }
+    return result;
+  }
   function updateScope(forceShuffle = false) {
     const previousPool = pool;
-    const selected = scope === null ? lists : lists.filter(list => scope.has(list.id));
-    pool = indexRows(selected);
-    for (const k of simple) pool.delete(k);
-    for (const [k,pair] of mastered) {
-      if (includeMastered) pool.set(k,pair); else pool.delete(k);
-    }
+    const selected = selectedLists();
+    pool = buildPool(selected);
     if (!forceShuffle && pool.size && pool.size < previousPool.size && [...pool.keys()].every(k => previousPool.has(k))) {
       // Keep the surviving cards in order, including any previous round.
       const current = order[cursor];
@@ -84,10 +97,37 @@ function createQuiz(markMastered) {
     for (const box of $('quizSources').querySelectorAll('input')) box.checked = scope === null || scope.has(box.value);
     drawCard();
   }
-  function show(data, excluded, masteredKeys, entries) {
+  function setSources(data, excluded, masteredKeys, entries) {
     lists = data; simple = excluded;
     mastered = new Map();
     for (const k of masteredKeys) if (entries.has(k)) mastered.set(k,entries.get(k));
+  }
+  function prepareMerge(data) {
+    if (!order.length) return;
+    setSources(data.lists, new Set(data.easy), data.mastered || [], indexRows(data.lists));
+    pool = buildPool(selectedLists());
+    if (deckMatchesPool()) return;
+    const previous = new Set(order), roundSize = previous.size, current = order[cursor];
+    const additions = [...pool.keys()].filter(k => !previous.has(k));
+    const next = [];
+    let position = 0;
+    for (let i = 0; i < order.length; i += roundSize) {
+      const kept = order.slice(i,i + roundSize).filter(k => pool.has(k));
+      if (cursor >= i && cursor < i + roundSize) {
+        position = next.length + order.slice(i,cursor).filter(k => pool.has(k)).length;
+      }
+      for (const k of kept) next.push(k);
+      for (const k of shuffleRound(undefined, additions)) next.push(k);
+    }
+    order = next;
+    cursor = position;
+    if (!order.length) cursor = 0;
+    else if (cursor === order.length) startNextRound();
+    if (order[cursor] !== current) revealed = false;
+    persist();
+  }
+  function show(data, excluded, masteredKeys, entries) {
+    setSources(data, excluded, masteredKeys, entries);
     const fields = document.createDocumentFragment();
     for (const list of lists) {
       const label = element('label', 'quiz-source'), box = element('input');
@@ -137,5 +177,5 @@ function createQuiz(markMastered) {
   for (const [id, step] of [['quizSmaller', -4], ['quizLarger', 4]]) {
     $(id).onclick = () => { size = Math.max(20, Math.min(80, size + step)); drawCard(); persist(); };
   }
-  return {show};
+  return {show, snapshot, restore, prepareMerge};
 }

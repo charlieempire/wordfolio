@@ -26,38 +26,49 @@ function createLibraryStore(legacyKey, defaults) {
     }
     return run(null, true);
   }
-  function run(change, initialize = false) {
+  function run(change, initialize = false, writePreferences) {
     if (!database) {
       const state = previousLibrary();
-      if (change) { change(state); localStorage.setItem(legacyKey, JSON.stringify(state)); }
+      if (change) {
+        change(state);
+        const undo = writePreferences?.();
+        try { localStorage.setItem(legacyKey, JSON.stringify(state)); }
+        catch (error) { undo?.(); throw error; }
+      }
       return Promise.resolve(state);
     }
     return new Promise((resolve,reject) => {
       const tx = database.transaction(['settings','simpleWords'], change || initialize ? 'readwrite' : 'readonly');
       const settings = tx.objectStore('settings'), words = tx.objectStore('simpleWords');
       const meta = settings.get('library'), keys = words.getAllKeys();
-      let state, problem;
+      let state, problem, undoPreferences;
       keys.onsuccess = () => {
         try {
-          state = meta.result ? {...meta.result, easy:keys.result} : previousLibrary();
+          state = meta.result ? {...meta.result, easy:[...keys.result]} : previousLibrary();
           if (change) change(state);
           if (!change && meta.result) return;
           const {easy,...rest} = state;
           settings.put(rest,'library');
           const before = new Set(keys.result), after = new Set(easy);
           for (const key of before) if (!after.has(key)) words.delete(key);
-          const newWords = new Set([...after].filter(key => !before.has(key)));
+          // A replacement can also change the meaning of an existing simple word.
+          const newWords = writePreferences ? after : new Set([...after].filter(key => !before.has(key)));
           if (newWords.size) {
             for (const list of state.lists) for (const [english, meaning] of list.rows) {
               const key = normalize(english);
               if (newWords.delete(key)) words.put({key,english,meaning});
             }
           }
+          undoPreferences = writePreferences?.();
         } catch (error) { problem=error; tx.abort(); }
       };
       tx.oncomplete = () => resolve(state);
-      tx.onabort = () => reject(problem || tx.error || Error('保存未完成'));
+      tx.onabort = () => {
+        try { undoPreferences?.(); }
+        finally { reject(problem || tx.error || Error('保存未完成')); }
+      };
     });
   }
-  return {open, read:() => run(null), update:change => run(change)};
+  return {open, read:() => run(null), update:change => run(change),
+    replace:(next, writePreferences) => run(data => Object.assign(data,next), false, writePreferences)};
 }
