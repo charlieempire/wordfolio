@@ -181,18 +181,25 @@ function supplementLibrary(local, incoming) {
     const {library:incoming,preferences} = pending;
     const replace = $('backupReplace').checked;
     setBusy(true);
+    let message = '已恢复全部词表和个人设置。';
+    $('backupStatus').textContent = '正在保存…';
     try {
-      let message = '已恢复全部词表和个人设置。';
       if (replace) state = await library.replace(incoming,() => writeBackupPreferences(preferences));
       else state = await library.update(local => { message = supplementLibrary(local,incoming); });
-      confirmBox.close();
+    } catch (error) {
+      if (error.name === 'QuotaExceededError') $('backupStatus').textContent = '浏览器存储空间不足，未能保存备份。';
+      else if (error.name === 'SecurityError' || error.name === 'NotAllowedError') $('backupStatus').textContent = '浏览器未允许此网站保存数据，请检查网站权限后重试。';
+      else $('backupStatus').textContent = '备份未保存，请重试或重新打开页面。' + (error.message || error.name);
+      return;
+    } finally { setBusy(false); }
+    confirmBox.close();
+    try {
       if (replace) restoreBackupView();
       else { quizMode.prepareMerge(state); render(); }
       const notice = replace ? 'backup-replaced' : 'backup-merged';
       if (updates) updates.postMessage(notice);
       else { try { localStorage.setItem('ciye.wordfolio.backup-notice',notice+':'+Date.now()); } catch {} }
       toast(message);
-    } catch { $('backupStatus').textContent = '导入未完成，请检查浏览器存储空间后重试。'; }
-    finally { setBusy(false); }
+    } catch { toast('备份已保存，请刷新页面查看。'); }
   };
 })();

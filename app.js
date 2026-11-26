@@ -165,6 +165,8 @@ async function importFiles(files){
     try{const sheets=await readLists(file);let added=0,skipped=0,skippedMastered=0,repeated=0,lastAdded=null;
       if(!sheets.some(s=>s.pairs.length))throw Error('未找到词条，请使用“英文”和“中文释义”两列');
       const saved=await save(data=>{
+        // A disconnected storage transaction can be retried from the original data.
+        added=skipped=skippedMastered=repeated=0;lastAdded=null;
         const simple=new Set(data.easy),mastered=new Set(data.mastered);
         for(const {name,sheet,pairs} of sheets){
           const id=listId(file.name,sheet);let list=data.lists.find(l=>l.id===id);
